@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+    class WSClient {
+        constructor(url, protocols = []) {
+            this.url = url;
+            this.protocols = protocols;
+            this.ws = null;
+            this.reconnectInterval = 2000; // ms
+            this.shouldReconnect = true;
+        }
+
+        connect() {
+            this.ws = new WebSocket(this.url, this.protocols);
+
+            this.ws.onopen = (e) => {
+                console.log("WebSocket connected");
+                this.onOpen(e);
+            };
+
+            this.ws.onmessage = (msg) => {
+                this.onMessage(msg.data);
+            };
+
+            this.ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+                this.onError(err);
+            };
+
+            this.ws.onclose = (e) => {
+                console.warn("WebSocket closed:", e.reason);
+                this.onClose(e);
+
+                if (this.shouldReconnect) {
+                    setTimeout(() => {
+                        console.log("Reconnecting WebSocket...");
+                        this.connect();
+                    }, this.reconnectInterval);
+                }
+            };
+        }
+
+        send(data) {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify(data));
+            } else {
+                console.warn("WebSocket is not open. Cannot send message.");
+            }
+        }
+
+        close() {
+            this.shouldReconnect = false;
+            if (this.ws) this.ws.close();
+        }
+
+        // Hooks to override
+        onOpen(e) {}
+        onMessage(msg) {}
+        onError(err) {}
+        onClose(e) {}
+    }
+    const client = new WSClient("ws://localhost:8080/ws");
+
+    client.onOpen = () => {
+        console.log("Connected!");
+        client.send({ type: "hello", text: "Hi Devesh" });
+    };
+
+    client.onMessage = (msg) => {
+        console.log("Received:", msg);
+    };
+
+    client.onError = (err) => console.error(err);
+
+    client.onClose = () => console.log("Disconnected");
+
+    client.connect();
+
+</script>
+</body>
+</html>
